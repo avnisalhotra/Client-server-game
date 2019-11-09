@@ -1,0 +1,47 @@
+#include<iostream>
+#include<ws2tcpip.h>
+
+#pragma comment (lib, "ws2_32.lib")
+
+using namespace std;
+
+void main()
+{
+	// Start up winsock
+	WSADATA data;
+	WORD version = MAKEWORD(2, 2);
+	int wsOK = WSAStartup(version, &data);
+	if (wsOK != 0)
+	{
+		cout << "Can't start winsock!" << wsOK;
+	}
+
+	// bind socket to ip
+	SOCKET in = socket(AF_INET, SOCK_DGRAM, 0);
+	sockaddr_in serverHint;
+	serverHint.sin_addr.S_un.S_addr = ADDR_ANY;
+	serverHint.sin_family = AF_INET;
+	serverHint.sin_port = htons(54000);// convert from little to big endian
+
+	if (bind(in, (sockaddr*)&serverHint, sizeof(serverHint)) == SOCKET_ERROR)
+	{
+		cout << "Can't bind socket!" << WSAGetLastError() << endl;
+			return;
+	}
+
+	// this is the client information
+	sockaddr_in client;
+	ZeroMemory(&client, sizeof(client));
+	// this is the buffer where the message gets received into
+	char buf[1024];
+	ZeroMemory(buf, 1024);
+
+	// enter a loop 
+			// wait for message
+			//get position and such
+			// display message and client infor
+	// close socket
+	closesocket(in);
+	// shutdown winsock
+	WSACleanup();
+}
