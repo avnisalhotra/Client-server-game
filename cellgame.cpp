@@ -11,12 +11,13 @@ Ver.: 2.1
 #include <iostream>
 #include <vector>
 #include <thread>
-#include<stdio.h>
+
 #include <SFML/Graphics.hpp>
 #include "cell.h"
 #include "food.h"
+//#include <windows.h>
 #include <WS2tcpip.h>
-#include "sqlite3.h"
+//#include "server.h"
 
 #pragma comment (lib, "ws2_32.lib")
 #define SFML_STATIC
@@ -31,16 +32,13 @@ float score;
 int counter;
 int x_pos= 10;
 int y_pos = 10;
+extern float xs;
+extern float ys;
 
 //Vectors to store players and foodsources
 std::vector<food> foodvec;
 std::vector<cell> cellvec;
 cell playercell("player1.png");
-
-// database variables
-static int createDB(const char* s);
-static int createTable(const char* s);
-static int insertData(const char*s);
 
 int main()
 {
@@ -48,23 +46,22 @@ int main()
 
 	int hit = 0;
 	RenderWindow window(VideoMode(800, 800), "Starting cellgamesim");//open SFML renderwindow
-	//RenderWindow window(VideoMode(-1, -1), "Starting cellgamesim");//open SFML renderwindow
 	Clock clock;
 	Font font;
 
 	Texture BGTexture;
 	Sprite BGSprite;
-	// database calls
-	const char* dir = "C:\\Users\\avnis\\source\\repos\\cellgame\\highscore.db";
-	createDB(dir);
-	createTable(dir);
-	insertData(dir);
+	Texture BGTexture2;
+	Sprite BGSprite2;
+		cell cellbgb("Bg_begin.png");
+		cellbgb.Sprite.setPosition(0, 0);
+		cellbgb.Render(window);
+		window.display();
+		while (!Keyboard::isKeyPressed(Keyboard::Space));
 
 	BGTexture.loadFromFile("background.png");
 	BGSprite.setTexture(BGTexture);
 	BGSprite.setPosition(0, 0);
-	//BGSprite.setPosition(800, 800);
-
 	cell playercell("player1.png");
 	cell other_cell("player1.png");
 
@@ -77,7 +74,7 @@ int main()
 
 	food foodinit = food("tex.jpg");
 	foodinit.setPosition(900, 900);//non reachable food for collision detection availability
-	//foodinit.setPosition(400, 400);//non reachable food for collision detection availability
+
 	while (window.isOpen())
 	{
 
@@ -106,7 +103,7 @@ int main()
 			timecount = 0;
 		}
 
-
+		
 		window.clear(Color(0, 100, 255));
 		window.draw(BGSprite);
 
@@ -123,6 +120,15 @@ int main()
 			}
 			if (hit)
 				score++;
+			if (score >= 50) //this section gets called when a player reached 50 score, so this is the end I guess
+			{
+				cell cellbg("Bg_end.png");
+				cellbg.Sprite.setPosition(0, 0);
+				cellbg.Render(window);
+				window.display();
+				while (!Keyboard::isKeyPressed(Keyboard::Space));
+				window.close();
+			}
 		}
 
 		int seperator=0;
@@ -150,6 +156,8 @@ int main()
 				y_pos = y_pos + buf[j] * pow(10, seperator2 - 1 - j);
 			}
 		}
+
+		
 
 
 		
@@ -219,7 +227,7 @@ void Serverinit() //Using winsock to create server and have a whileloop keeping 
 		std::cout << "Can't bind socket! " << WSAGetLastError() << std::endl;
 		return;
 	}
-	sockaddr_in client; // Use to hold the client information (port / ip address) 
+	sockaddr_in client; // Use to hold the client information (port / ip address)
 	int clientLength = sizeof(client); // The size of the client information
 
 
@@ -291,9 +299,11 @@ void Clientsend() // client sends data to server, socket itself is closed after 
 	SOCKET out = socket(AF_INET, SOCK_DGRAM, 0);
 
 	// Write out to that socket
-	auto pos = playercell.getPosition(); //we get the position from the player, make it into a string to be sendable and add limiters to identify parts
+	/*auto pos = playercell.getPosition(); //we get the position from the player, make it into a string to be sendable and add limiters to identify parts
 	auto s1= std::to_string((int)pos.x);
-	auto s2 = std::to_string((int)pos.y);
+	auto s2 = std::to_string((int)pos.y);*/
+	auto s1 = std::to_string((int)xs);
+	auto s2 = std::to_string((int)ys);
 	std::string s = s1+'x'+s2 + 'y';
 	int sendOk = sendto(out, s.c_str(), s.size() + 1, 0, (sockaddr*)&server, sizeof(server));
 
@@ -302,7 +312,7 @@ void Clientsend() // client sends data to server, socket itself is closed after 
 		std::cout << "That didn't work! " << WSAGetLastError() << std::endl;
 	}
 
-	//s = ("Hey, I hope this works"); //just a dummy send packet
+	//s = ("Hey, I hope this works2"); //just a dummy send packet
 	sendOk = sendto(out, s.c_str(), s.size() + 1, 0, (sockaddr*)&server, sizeof(server));
 
 	if (sendOk == SOCKET_ERROR)
@@ -315,68 +325,3 @@ void Clientsend() // client sends data to server, socket itself is closed after 
 	// Close down Winsock
 	//WSACleanup();
 }
-
-
-static int createDB(const char* s)
-{
-	sqlite3* DB;
-	int exit = 0;
-
-	exit = sqlite3_open(s, &DB);
-	sqlite3_close(DB);
-	return 0;
-
-}
-
-static int createTable(const char* s)
-{
-	sqlite3* DB;
-	std::string sql = "CREATE TABLE IF NOT EXISTS highscore("
-		"CLIENTID STRING PRIMARY KEY NOT NULL,"
-		"SCORE INTEGER NOT NULL);";
-
-	try
-	{
-		int exit = 0;
-		exit = sqlite3_open(s, &DB);
-		char* messageError;
-		exit = sqlite3_exec(DB, sql.c_str(), NULL, 0, &messageError);
-
-		if (exit != SQLITE_OK) {
-			std::cerr << " Error creating table" << std::endl;
-			sqlite3_free(messageError);
-		}
-		else
-			std::cout << "Table created successfully" << std::endl;
-	}
-	catch
-		(const std::exception & e)
-	{
-		std::cerr << e.what();
-	}
-	return 0;
-}
-static int insertData(const char*s)
-{
-	sqlite3* DB;
-	char* messageError;
-	
-	int exit = sqlite3_open(s, &DB);
-	// "insert into highsc
-	std::string sql("INSERT INTO highscore VALUES(?,?); ", (clientIp, score));
-	//std::string sql("INSERT INTO highscore VALUES (" + clientIp + "," + score + ")");
-
-	exit = sqlite3_exec(DB, sql.c_str(), NULL, 0, &messageError);
-	if (exit != SQLITE_OK) {
-		std::cerr << "ERROR INSERT" << std::endl;
-		sqlite3_free(messageError);
-	}
-	else
-		std::cout<<"Record created successfully!"<< std::endl;
-	return 0;
-}
-
-
-
-
-
