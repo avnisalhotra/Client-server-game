@@ -30,8 +30,9 @@ float score;
 int counter;
 int x_pos = 10;
 int y_pos = 10;
-float xs;
-float ys;
+extern float xs;
+extern float ys;
+int s_pos;
 
 //Vectors to store players and foodsources
 std::vector<food> foodvec;
@@ -60,12 +61,11 @@ int main()
 	//creating a database
 	createDB(dir);
 	createTable(dir);
-	insertData(dir);
+	//insertData(dir);
 	// if you add here it will always be zero, need to add in 
 	//the function where you reach 50 but that makes my laptop cry in pain
 	// althout it could be that it doesn't belong there and we need to refence it. 
-
-	DisplayDB(dir); // similar to insert this also need a better home where it can display data at the end.
+	//DisplayDB(dir); // similar to insert this also need a better home where it can display data at the end.
 
 
 	Texture BGTexture;
@@ -144,10 +144,21 @@ int main()
 				cell cellbg("Bg_end.png");
 
 				// if the highscore is achieved add to database
-				//insertData(dir);
-
 				cellbg.Sprite.setPosition(0, 0);
 				cellbg.Render(window);
+				window.display();
+				while (!Keyboard::isKeyPressed(Keyboard::Space));
+				window.close();
+				//std::cout << score << std::endl;
+				insertData(dir);
+				DisplayDB(dir);
+				return 0;
+			}
+			else if (s_pos >= 50)
+			{
+				cell cellbg2("Bg_end2.png");
+				cellbg2.Sprite.setPosition(0, 0);
+				cellbg2.Render(window);
 				window.display();
 				while (!Keyboard::isKeyPressed(Keyboard::Space));
 				window.close();
@@ -156,6 +167,7 @@ int main()
 
 		int seperator = 0;
 		int seperator2 = 0;
+		int seperator3 = 0;
 
 		if (buf[0] != NULL) //reading position form other cell
 		{
@@ -169,6 +181,10 @@ int main()
 				{
 					seperator2 = i;
 				}
+				if (buf[i] == 's')
+				{
+					seperator2 = i;
+				}
 			}
 			for (int j = 0; j < seperator; j++)
 			{
@@ -177,6 +193,10 @@ int main()
 			for (int j = seperator + 1; j < seperator2; j++)
 			{
 				y_pos = y_pos + buf[j] * pow(10, seperator2 - 1 - j);
+			}
+			for (int j = seperator2 + 1; j < seperator3; j++)
+			{
+				s_pos = s_pos + buf[j] * pow(10, seperator3 - 1 - j);//XXXXX
 			}
 		}
 
@@ -191,6 +211,10 @@ int main()
 		{
 			if (x_pos != 0 & y_pos != 0) //update other player pos with data that was send by him
 			{
+				if (x_pos > 800) //XXXXX
+					x_pos = 799;
+				if (y_pos > 800)
+					y_pos = 799;
 				cellvec[i].PosUpdate(window, x_pos, y_pos);
 				cellvec[i].Render(window);
 				x_pos = 0;
@@ -278,7 +302,7 @@ void Serverinit() //Using winsock to create server and have a whileloop keeping 
 		inet_ntop(AF_INET, &client.sin_addr, clientIp, 256);
 
 		// Display the message / who sent it
-		std::cout << "Message recv from " << clientIp << " : " << buf << std::endl;
+		//std::cout << "Message recv from " << clientIp << " : " << buf << std::endl;
 	}
 }
 
@@ -327,7 +351,8 @@ void Clientsend() // client sends data to server, socket itself is closed after 
 	auto s2 = std::to_string((int)pos.y);*/
 	auto s1 = std::to_string((int)xs);
 	auto s2 = std::to_string((int)ys);
-	std::string s = s1 + 'x' + s2 + 'y';
+	auto s3 = std::to_string((int)score);
+	std::string s = s1 + 'x' + s2 + 'y'+s3+'s';
 	int sendOk = sendto(out, s.c_str(), s.size() + 1, 0, (sockaddr*)&server, sizeof(server));
 
 	if (sendOk == SOCKET_ERROR)
@@ -370,7 +395,7 @@ static int createTable(const char* s)
 	std::string sql = "CREATE TABLE IF NOT EXISTS highscore("
 		"ID INTEGER PRIMARY KEY AUTOINCREMENT,"
 		"clientid CHAR(256),"
-		"score INT NOT NULL);";//127.0.0.1
+		"score FLOAT NOT NULL);";
 	try
 	{
 		int exit = 0;
@@ -400,12 +425,11 @@ static int insertData(const char*s)
 	char sqlstr[256];
 	int exit = sqlite3_open(s, &DB);
 	// "insert into highscore
-	sprintf_s(sqlstr, "INSERT INTO highscore (clientid,score) VALUES ('%s',%i);", clientid, score);
-	
-	// these print lines are for checking the values being passed, delete when finished
-	std::cout << clientid << std::endl;
-	std::cout << score << std::endl;
-	std::cout << sqlstr << std::endl;
+	sprintf_s(sqlstr, "INSERT INTO highscore (clientid,score) VALUES ('%s',%f);", clientid, score);
+	//these print lines are for checking the values being passed, delete when finished
+	//std::cout << clientid << std::endl;
+	//std::cout << score << std::endl;
+	//std::cout << sqlstr << std::endl;
 
 	//std::string sql = "INSERT INTO highscore(clientid) VALUES (?);",(clientid);
 
@@ -435,8 +459,9 @@ static String DisplayDB(const char* s)
 	sqlite3* DB;
 	int exit = sqlite3_open(s, &DB);
 	std::string sql = "SELECT * FROM highscore;";
+
 	// an open database, SQL to be evaluated, callback function, 1st argument to callback.
-	sqlite3_exec(DB, sql.c_str(), callback,NULL,NULL);
+	sqlite3_exec(DB, sql.c_str(), callback , NULL , NULL);
 
 	return sql;
 
